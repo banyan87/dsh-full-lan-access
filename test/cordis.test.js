@@ -14,7 +14,7 @@ import { join } from 'node:path'
 import http from 'node:http'
 import LanAccess from '../lib/index.js'
 import { hashPassword } from '../lib/scrypt.js'
-import { ensureSelfLink } from './helpers.mjs'
+import { ensureSelfLink, PROJECT_ROOT } from './helpers.mjs'
 
 const PASSWORD = 'cordis-test-password'
 const HASH = hashPassword(PASSWORD)
@@ -167,9 +167,7 @@ test('loads as a loader entry (cordis.yml composition mechanism)', async () => {
   ensureSelfLink()
   const upstream = await startFakeUpstream()
   const { default: Loader } = await import('@deepseek-ai/cordis-plugin-loader')
-  const { fileURLToPath } = await import('node:url')
-  const { dirname } = await import('node:path')
-  const baseUrl = dirname(fileURLToPath(import.meta.url))
+  const baseUrl = PROJECT_ROOT
 
   const ctx = new Context()
   let entryId
@@ -196,9 +194,7 @@ test('loads as a loader entry (cordis.yml composition mechanism)', async () => {
 test('loader entry with invalid config fails loudly', async () => {
   ensureSelfLink()
   const { default: Loader } = await import('@deepseek-ai/cordis-plugin-loader')
-  const { fileURLToPath } = await import('node:url')
-  const { dirname } = await import('node:path')
-  const baseUrl = dirname(fileURLToPath(import.meta.url))
+  const baseUrl = PROJECT_ROOT
 
   const ctx = new Context()
   let entryId

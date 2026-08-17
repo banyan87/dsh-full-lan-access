@@ -24,17 +24,28 @@ Secure LAN access for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek
 ## Quick start
 
 ```bash
-# 1. Install into the web profile (forwards to pnpm)
+# 1. Install into the web profile (registers the plugin as a profile bundle,
+#    which inserts the lan-access row into the composition)
 dsh plugin --profile web add dsh-full-lan-access
 
 # 2. Generate a password hash
 npx dsh-lan-gate hash-password            # prompts; or pass the password as an argument
 
-# 3. Add the row to $DSH_HOME/profiles/web/cordis.patch.yml
-#    (see examples/cordis.patch.example.yml)
+# 3. Configure the row in $DSH_HOME/profiles/web/cordis.patch.yml
+#    (the row already exists from the bundle; you only override its config)
+- id: lan-access
+  config:
+    security:
+      passwordHash: 'scrypt$16384$8$1$...'   # from step 2
 
 # 4. Restart dsh web, then open http://<your-lan-ip>:3081 from another device
 ```
+
+> The plugin fails closed: the very first boot after step 1 without step 3
+> refuses to start with a clear message (`passwordHash is not set`) — a LAN
+> gateway never runs unauthenticated. See `docs/installation.md` for the
+> manual (non-bundle) flow and `examples/cordis.patch.example.yml` for a
+> fully-annotated row.
 
 From the LAN, unauthenticated browsers are redirected to the gateway's login page; authenticated clients are proxied to the DSH web UI, including WebSocket connections. From the DSH host itself, `http://127.0.0.1:3081` requires no login (loopback bypass).
 

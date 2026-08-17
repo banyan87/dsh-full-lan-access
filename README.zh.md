@@ -24,17 +24,26 @@
 ## 快速开始
 
 ```bash
-# 1. 安装到 web profile（转发给 pnpm）
+# 1. 安装到 web profile（注册为 profile bundle，自动把 lan-access 行插入组合）
 dsh plugin --profile web add dsh-full-lan-access
 
 # 2. 生成密码哈希
 npx dsh-lan-gate hash-password            # 交互式输入；也可把密码作为参数传入
 
-# 3. 在 $DSH_HOME/profiles/web/cordis.patch.yml 中加入配置行
-#    （参见 examples/cordis.patch.example.yml）
+# 3. 在 $DSH_HOME/profiles/web/cordis.patch.yml 中配置该行
+#    （行已由 bundle 插入，只需按 id 覆盖其 config）
+- id: lan-access
+  config:
+    security:
+      passwordHash: 'scrypt$16384$8$1$...'   # 来自第 2 步
 
 # 4. 重启 dsh web，然后在其他设备打开 http://<你的局域网IP>:3081
 ```
+
+> 插件失败即关闭：第 1 步之后未做第 3 步的首次启动会以明确报错拒绝启动
+> （`passwordHash is not set`）—— 局域网网关绝不以未认证状态运行。
+> 非 bundle 的手动安装流程见 `docs/installation.md`，完整注释配置行见
+> `examples/cordis.patch.example.yml`。
 
 局域网内未登录的浏览器会被重定向到网关登录页；认证通过的客户端被代理到 DSH Web 界面（含 WebSocket 连接）。在 DSH 宿主机上访问 `http://127.0.0.1:3081` 无需登录（本机免密）。
 

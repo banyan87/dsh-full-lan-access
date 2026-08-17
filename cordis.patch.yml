@@ -1,0 +1,23 @@
+# dsh-full-lan-access bundle patch: the lan-access row, inserted into the
+# composition of every profile that installs this package as a bundle.
+#
+# The row deliberately ships with NO config: the plugin fails closed at
+# startup until `security.passwordHash` is set — a LAN gateway must never
+# start unauthenticated. The failure message tells you exactly what to do.
+#
+# After `dsh plugin --profile <name> add dsh-full-lan-access`, configure the
+# row from the profile's OWN patch layer (applied after every bundle layer;
+# the row identity comes from this file, so you only override config):
+#
+#   # $DSH_HOME/profiles/web/cordis.patch.yml
+#   - id: lan-access
+#     config:
+#       security:
+#         passwordHash: 'scrypt$16384$8$1$...'   # from: dsh-lan-gate hash-password
+#
+# See https://github.com/banyan87/dsh-full-lan-access for the full
+# configuration reference (docs/configuration.md).
+
+- insert:
+    - id: lan-access
+      name: 'dsh-full-lan-access'

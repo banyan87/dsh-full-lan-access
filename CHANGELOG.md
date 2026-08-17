@@ -4,6 +4,33 @@ All notable changes to dsh-full-lan-access are documented here. The format
 is based on [Keep a Changelog](https://keepachangelog.com/), and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-08-17
+
+### Added
+
+- **Profile bundle registration** — the package manifest now declares
+  `dsh.bundle.patch` (`cordis.patch.yml` at the package root), so
+  `dsh plugin --profile web add dsh-full-lan-access` registers the plugin as
+  a composition layer and inserts the `lan-access` row automatically. Users
+  only override the row's config (e.g. `passwordHash`) from their own
+  `cordis.patch.yml`; the row identity is inherited from the bundle.
+- **Bundle contract tests** (`test/bundle.test.js`) — pins the patch
+  semantics (id-targeted per-key merge, wholesale `config` replacement,
+  `insert` lists), the fail-closed unconfigured row, and the configured
+  override booting and proxying through the loader.
+
+### Changed
+
+- **Fail-closed install flow** — the bundle row ships with no config on
+  purpose: the first boot after `dsh plugin add` without a configured
+  `passwordHash` fails loudly with an actionable error instead of exposing
+  an unauthenticated gateway.
+- **Installation docs** — rewritten around the bundle flow; documents the
+  manual `insert:` flow for plain (non-bundle) installs and why a bare
+  `- id:` patch is skipped when the row does not exist.
+- **Example patch** — now uses the correct `insert:` form
+  (`examples/cordis.patch.example.yml`).
+
 ## [1.0.0] — 2026-08-17
 
 Initial release.

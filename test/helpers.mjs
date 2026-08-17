@@ -9,7 +9,10 @@ import { existsSync, mkdirSync, symlinkSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
-export const PROJECT_ROOT = dirname(fileURLToPath(import.meta.url))
+const TEST_DIR = dirname(fileURLToPath(import.meta.url))
+
+/** The project root (the dsh-full-lan-access package directory). */
+export const PROJECT_ROOT = dirname(TEST_DIR)
 
 export function ensureSelfLink() {
   const link = join(PROJECT_ROOT, 'node_modules', 'dsh-full-lan-access')

@@ -1,70 +1,89 @@
 # Example: add dsh-full-lan-access to the DSH web profile
 #
-# Copy the `lan-access` row below into $DSH_HOME/profiles/web/cordis.patch.yml
-# (merge with any existing rows in that file), replace the passwordHash with
-# the output of `npx dsh-lan-gate hash-password`, then restart `dsh web`.
+# Two flows exist:
 #
-# Install the package first:
-#   dsh plugin --profile web add dsh-full-lan-access
+# A) BUNDLE flow (recommended): after `dsh plugin --profile web add
+#    dsh-full-lan-access`, the package registers itself as a profile layer
+#    and its cordis.patch.yml already inserts the `lan-access` row. You then
+#    only OVERRIDE its config in $DSH_HOME/profiles/web/cordis.patch.yml:
+#
+#      - id: lan-access
+#        config:
+#          security:
+#            passwordHash: 'scrypt$16384$8$1$REPLACE_WITH_YOUR_HASH'
+#
+#    (no `name`, no `insert` — the row identity comes from the bundle).
+#    Note: the plugin fails closed on startup until passwordHash is set —
+#    that is deliberate, so the very first boot after install without this
+#    override fails loudly instead of exposing an unauthenticated gateway.
+#
+# B) MANUAL flow (no bundle, e.g. a plain `file:` install): the profile's
+#    patch layer only patches or inserts rows — a bare `- id:` row targets
+#    an existing row and is skipped with a warning when none exists. Use the
+#    `insert:` form below instead.
+#
+# Replace the passwordHash with the output of:
+#   npx dsh-lan-gate hash-password
+# then restart `dsh web`.
 
-- id: lan-access
-  name: 'dsh-full-lan-access'
-  config:
-    # Master switch; set false to keep the plugin loaded but not listening.
-    enabled: true
+- insert:
+    - id: lan-access
+      name: 'dsh-full-lan-access'
+      config:
+        # Master switch; set false to keep the plugin loaded but not listening.
+        enabled: true
 
-    # Where the gateway listens. 0.0.0.0 exposes all IPv4 interfaces.
-    listen:
-      host: '0.0.0.0'
-      port: 3081
+        # Where the gateway listens. 0.0.0.0 exposes all IPv4 interfaces.
+        listen:
+          host: '0.0.0.0'
+          port: 3081
 
-    # The DSH web server this gateway protects. Keep DSH on loopback.
-    upstream:
-      protocol: http
-      host: '127.0.0.1'
-      port: 3080
+        # The DSH web server this gateway protects. Keep DSH on loopback.
+        upstream:
+          protocol: http
+          host: '127.0.0.1'
+          port: 3080
 
-    security:
-      # Only these networks may reach the gateway at all.
-      allowCidrs:
-        - '192.168.1.0/24'
-        - '10.0.0.0/8'
-      # These are always rejected, even if they match allowCidrs.
-      denyCidrs:
-        - '10.0.0.66/32'
-      # Password gate for non-loopback clients.
-      requireAuth: true
-      passwordHash: 'scrypt$16384$8$1$REPLACE_WITH_YOUR_HASH'
-      # Localhost clients pass without a password.
-      loopbackBypassAuth: true
-      # Reject requests carrying X-Forwarded-For & co. (anti-spoofing).
-      rejectProxyHeaders: true
+        security:
+          # Only these networks may reach the gateway at all.
+          allowCidrs:
+            - '192.168.1.0/24'
+            - '10.0.0.0/8'
+          # These are always rejected, even if they match allowCidrs.
+          denyCidrs:
+            - '10.0.0.66/32'
+          # Password gate for non-loopback clients.
+          requireAuth: true
+          passwordHash: 'scrypt$16384$8$1$REPLACE_WITH_YOUR_HASH'
+          # Localhost clients pass without a password.
+          loopbackBypassAuth: true
+          # Reject requests carrying X-Forwarded-For & co. (anti-spoofing).
+          rejectProxyHeaders: true
 
-    session:
-      ttlSec: 604800      # 7 days
-      maxSessions: 64
+        session:
+          ttlSec: 604800      # 7 days
+          maxSessions: 64
 
-    login:
-      maxAttempts: 5      # per IP, within the window
-      windowSec: 900
-      lockoutSec: 900
+        login:
+          maxAttempts: 5      # per IP, within the window
+          windowSec: 900
+          lockoutSec: 900
 
-    rateLimit:
-      enabled: true
-      maxRequests: 120    # per IP per minute
-      windowSec: 60
+        rateLimit:
+          enabled: true
+          maxRequests: 120    # per IP per minute
+          windowSec: 60
 
-    tls:
-      enabled: false
-      # certPath: 'C:\\dsh\\server.crt'   # use your own cert, or leave null
-      # keyPath:  'C:\\dsh\\server.key'   # for an auto-generated self-signed cert
+        tls:
+          enabled: false
+          # certPath: 'C:\\dsh\\server.crt'   # use your own cert, or leave null
+          # keyPath:  'C:\\dsh\\server.key'   # for an auto-generated self-signed cert
 
-    # stateDir: null      # default: $DSH_HOME/lan-access
+        # stateDir: null      # default: $DSH_HOME/lan-access
 
-    audit:
-      file: null          # e.g. '$DSH_HOME/lan-access/audit.jsonl' — Windows:
-                          # use an absolute path like 'C:\\dsh\\lan-access\\audit.jsonl'
-      level: info
+        audit:
+          file: null          # e.g. an absolute Windows path 'C:\\dsh\\lan-access\\audit.jsonl'
+          level: info
 
-    proxy:
-      timeoutMs: 30000
+        proxy:
+          timeoutMs: 30000
