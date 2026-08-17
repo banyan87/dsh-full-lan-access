@@ -35,7 +35,9 @@ limit → header sanitization.
   `scrypt$N$r$p$salt$hash`.
 - Constant-time comparison (`timingSafeEqual`); malformed hashes fail closed.
 - Per-IP sliding-window attempt limiting with lockout messaging; the general
-  per-IP throttle bounds traffic from misbehaving clients.
+  per-IP throttle bounds **unauthenticated** traffic from misbehaving
+  clients (authenticated sessions and loopback traffic are never throttled,
+  so the DSH web UI's bursty asset loads are not punished).
 - CSRF double-submit protection on the login form; login responses are
   `Cache-Control: no-store`.
 

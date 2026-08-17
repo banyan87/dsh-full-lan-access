@@ -40,6 +40,17 @@ function startFakeUpstream() {
         })
         return
       }
+      if (req.url === '/slow-stream') {
+        // Send headers immediately, then a body chunk well after the
+        // gateway's request timeout — like an SSE event stream.
+        res.writeHead(200, { 'content-type': 'text/plain' })
+        res.write('headers-first\n')
+        setTimeout(() => {
+          res.write('late-body\n')
+          res.end()
+        }, 150)
+        return
+      }
       res.writeHead(200, { 'content-type': 'text/plain' })
       res.end('upstream-ok')
     })
@@ -322,6 +333,64 @@ test('auth mode: repeated failures trigger the login rate limiter', async () => 
     const res = await login(gate.port, { password: PASSWORD })
     assert.equal(res.status, 429, 'correct password must still be locked out')
     assert.match(res.body, /Too many attempts/)
+  } finally {
+    await gate.gateway.close()
+    rmSync(gate.stateDir, { recursive: true, force: true })
+  }
+})
+
+test('the general rate limit throttles unauthenticated traffic', async () => {
+  const gate = await startGateway(upstream.port, {
+    security: { loopbackBypassAuth: false },
+    rateLimit: { enabled: true, maxRequests: 2, windowSec: 60 },
+  })
+  try {
+    assert.equal((await request(gate.port, { path: '/', headers: { accept: 'application/json' } })).status, 401)
+    assert.equal((await request(gate.port, { path: '/', headers: { accept: 'application/json' } })).status, 401)
+    const third = await request(gate.port, { path: '/', headers: { accept: 'application/json' } })
+    assert.equal(third.status, 429, 'the third unauthenticated request must be rate-limited')
+    assert.ok(third.headers['retry-after'])
+  } finally {
+    await gate.gateway.close()
+    rmSync(gate.stateDir, { recursive: true, force: true })
+  }
+})
+
+test('authenticated traffic is exempt from the general rate limit', async () => {
+  const gate = await startGateway(upstream.port, {
+    security: { loopbackBypassAuth: false },
+    rateLimit: { enabled: true, maxRequests: 2, windowSec: 60 },
+  })
+  try {
+    const res = await login(gate.port)
+    const cookies = extractCookies(res)
+    const cookieHeader = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ')
+    // Far more requests than the limiter would allow — all must pass.
+    for (let i = 0; i < 6; i += 1) {
+      const proxied = await request(gate.port, { path: '/', headers: { cookie: cookieHeader } })
+      assert.equal(proxied.status, 200, `authenticated request #${i + 1} must not be rate-limited`)
+    }
+  } finally {
+    await gate.gateway.close()
+    rmSync(gate.stateDir, { recursive: true, force: true })
+  }
+})
+
+test('long-lived upstream streams survive the request timeout (SSE)', async () => {
+  const gate = await startGateway(upstream.port, {
+    security: { loopbackBypassAuth: false },
+    proxy: { timeoutMs: 100 },
+  })
+  try {
+    const res = await login(gate.port)
+    const cookies = extractCookies(res)
+    const cookieHeader = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ')
+    const result = await Promise.race([
+      request(gate.port, { path: '/slow-stream', headers: { cookie: cookieHeader } }),
+      new Promise((resolve, reject) => setTimeout(() => reject(new Error('client timed out')), 5000)),
+    ])
+    assert.equal(result.status, 200)
+    assert.equal(result.body, 'headers-first\nlate-body\n')
   } finally {
     await gate.gateway.close()
     rmSync(gate.stateDir, { recursive: true, force: true })

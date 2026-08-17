@@ -61,10 +61,15 @@
 5. **Session check.** A valid `dsh_lan_session` cookie (HttpOnly, SameSite=Lax,
    Secure under TLS) passes; otherwise browsers get a `302` to the login page,
    API-style requests get `401` JSON.
-6. **Rate limit.** Non-loopback clients are throttled per IP.
+6. **Rate limit.** Unauthenticated non-loopback requests are throttled per IP
+   (`429`) — the limiter guards the auth gate and the upstream from anonymous
+   floods. Authenticated sessions and loopback traffic are never throttled.
 7. **Proxy.** Headers are sanitized (hop-by-hop and gateway cookies
    stripped), the `Host` header is reset to the upstream, and the request and
-   response bodies are streamed without buffering. Timeouts yield `502`.
+   response bodies are streamed without buffering. The request timeout
+   applies only until upstream response headers arrive, so long-lived
+   streams (SSE event channels, long polls) stay open; a request that never
+   gets a response yields `502`.
 
 ## Upgrade flow (WebSocket)
 

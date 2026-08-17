@@ -77,7 +77,7 @@ upgrades.
 | `400` | Unresolvable client address, or proxy headers present while `rejectProxyHeaders` is on |
 | `401` | Authentication required (API-style requests get JSON `{"error":"unauthorized","login":"/__lan_gate/login"}`) |
 | `403` | Address denied by or absent from the CIDR policy |
-| `429` | Rate limited (`Retry-After` set) or login locked out |
+| `429` | Rate limited (`Retry-After` set; unauthenticated non-loopback traffic) or login locked out |
 | `502` | Upstream unreachable or timed out |
 | `405` | Wrong method on a gateway-local endpoint |
 

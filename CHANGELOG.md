@@ -4,6 +4,31 @@ All notable changes to dsh-full-lan-access are documented here. The format
 is based on [Keep a Changelog](https://keepachangelog.com/), and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] — 2026-08-17
+
+### Fixed
+
+- **General rate limit no longer throttles authenticated sessions.** The
+  per-IP limiter previously counted every non-loopback request, so the DSH
+  web UI's bursty page loads (dozens of bundle/asset requests per load)
+  exhausted the 120 req/min budget, produced `429` storms, and triggered
+  browser retry loops. The limiter now applies only to **unauthenticated**
+  non-loopback traffic — it guards the auth gate and the upstream from
+  anonymous floods, while authorized sessions and loopback traffic flow
+  freely. The login-attempt limiter is unchanged.
+- **Request timeout no longer kills long-lived upstream streams.** The
+  upstream timeout applied to socket idleness, so DSH's SSE event channels
+  (which legitimately stay open without data) were torn down after
+  `proxy.timeoutMs`, surfacing as `proxy-error: upstream timeout`. The
+  timeout now guards only the request phase and is cleared once upstream
+  response headers arrive.
+
+### Added
+
+- Tests for the new semantics: unauthenticated traffic is rate-limited,
+  authenticated traffic is exempt, and SSE-style streams survive the
+  request timeout.
+
 ## [1.1.0] — 2026-08-17
 
 ### Added

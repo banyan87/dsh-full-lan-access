@@ -82,9 +82,13 @@ and survive gateway restarts.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `enabled` | boolean | `true` | General per-IP request throttle for non-loopback clients. |
+| `enabled` | boolean | `true` | Per-IP throttle for **unauthenticated** non-loopback requests (guards the auth gate and the upstream from anonymous floods). |
 | `maxRequests` | natural | `120` | Requests per IP per window. |
 | `windowSec` | natural | `60` | Throttle window. |
+
+Authenticated sessions and loopback traffic are never throttled — the DSH
+web UI legitimately fires dozens of requests per page load, and an
+authorized LAN client must not be punished for it.
 
 ### `tls` — object
 
