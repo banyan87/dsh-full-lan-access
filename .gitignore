@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+*.tsbuildinfo
+
+# Runtime state (sessions, generated TLS keys, audit logs)
+state/
+lan-gate/
+*.log
+
+# Test artifacts
+coverage/
+.tmp/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# npm
+*.tgz
+npm-debug.log*

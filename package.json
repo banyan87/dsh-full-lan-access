@@ -1,0 +1,56 @@
+{
+  "name": "dsh-full-lan-access",
+  "version": "1.0.0",
+  "description": "Secure LAN access gateway for DeepSeek Harness (DSH): CIDR allowlist, password authentication with scrypt, rate limiting, optional TLS, WebSocket reverse proxy, and audit logging.",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "dsh-lan-gate": "bin/dsh-lan-gate.js"
+  },
+  "files": [
+    "lib",
+    "bin",
+    "docs",
+    "examples",
+    "README.md",
+    "README.zh.md",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "smoke": "node scripts/smoke-live.mjs"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "lan",
+    "reverse-proxy",
+    "security",
+    "websocket"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/cordis-plugin-loader": "^1.0.2",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  }
+}
