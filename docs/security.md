@@ -52,11 +52,25 @@ limit → header sanitization.
   leak to the upstream or into DSH's own logs.
 
 ### 4. The proxy
-- Streaming only — request/response bodies are never buffered.
+- Streaming only — request/response bodies are never buffered, except
+  injectable HTML pages (≤ 512 KB) which receive the `crypto.randomUUID`
+  polyfill so the DSH client works over plain-HTTP LAN origins (non-secure
+  contexts lack `crypto.randomUUID`).
 - Hop-by-hop headers and the gateway's cookies are removed; `Host` is reset
   to the upstream.
+- `Origin` is rewritten to the upstream authority (`compat.rewriteOrigin`).
+  **Trust-boundary note:** DSH's own `/api` DNS-rebinding fence compares
+  Origin against Host; rewriting Origin makes proxied traffic pass it. The
+  gateway deliberately replaces that fence as the trust perimeter — the
+  CIDR allowlist bounds who may connect, password auth gates who may
+  connect, and sessions gate what they may do. DSH's cross-site defense is
+  preserved for anything DSH rejects on `Sec-Fetch-Site: cross-site`.
+  Deployments that require DSH's fence semantics must not expose DSH
+  through this gateway (keep it loopback-only).
 - WebSocket upgrades are authenticated before any tunneling begins.
-- Upstream timeouts produce `502` instead of hanging connections.
+- Upstream timeouts produce `502` instead of hanging connections; the
+  timeout covers only the request phase, so SSE/long-poll streams stay
+  open.
 
 ### 5. Audit
 Every security-relevant decision is emitted as one JSON line: IP allowed /

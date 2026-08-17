@@ -4,6 +4,38 @@ All notable changes to dsh-full-lan-access are documented here. The format
 is based on [Keep a Changelog](https://keepachangelog.com/), and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] — 2026-08-17
+
+### Added
+
+- **Browser-compatibility layer (`compat` config)** so the DSH web client
+  works over plain-HTTP LAN origins:
+  - `injectRandomUUIDPolyfill` — injects a `crypto.randomUUID()` polyfill
+    (backed by `crypto.getRandomValues`) into HTML pages before `</head>`.
+    Browsers only expose `crypto.randomUUID` in secure contexts, so the
+    DSH client's direct calls (workspace creation, model page, plugin
+    pages) threw `crypto.randomUUID is not a function` on LAN origins.
+  - `rewriteOrigin` — rewrites the `Origin` header of proxied requests
+    (HTTP and WebSocket upgrades) to the upstream authority so DSH's
+    `/api` trust fence (Origin must match Host) passes. Without it every
+    request carrying an Origin was rejected with 403, breaking privileged
+    RPCs such as `settings.*` (language preference), the plugin inventory,
+    and model discovery for LAN clients.
+  - Both default to `true` and are independently disableable.
+
+### Changed
+
+- `lib/compat.js` extracted for the polyfill/injection helpers; the proxy
+  buffers only injectable HTML (≤ 512 KB, identity-encoded) and streams
+  everything else untouched; `Content-Length` is dropped for injected
+  responses.
+
+### Added (tests)
+
+- `test/compat.test.js` (injection anchors, content-type/encoding rules).
+- Gateway integration tests: HTML injection through the proxy, Origin
+  rewriting for HTTP and WebSocket upgrades, and both compat switches off.
+
 ## [1.1.1] — 2026-08-17
 
 ### Fixed

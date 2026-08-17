@@ -65,11 +65,16 @@
    (`429`) — the limiter guards the auth gate and the upstream from anonymous
    floods. Authenticated sessions and loopback traffic are never throttled.
 7. **Proxy.** Headers are sanitized (hop-by-hop and gateway cookies
-   stripped), the `Host` header is reset to the upstream, and the request and
-   response bodies are streamed without buffering. The request timeout
-   applies only until upstream response headers arrive, so long-lived
-   streams (SSE event channels, long polls) stay open; a request that never
-   gets a response yields `502`.
+   stripped), the `Host` header is reset to the upstream, and — when
+   `compat.rewriteOrigin` is on — a present `Origin` header is rewritten to
+   the upstream authority so DSH's `/api` trust fence (Origin must match
+   Host) passes. Request and response bodies are streamed without buffering,
+   except HTML pages (when `compat.injectRandomUUIDPolyfill` is on) which
+   are buffered up to 512 KB and receive the `crypto.randomUUID` polyfill
+   (browsers only expose `randomUUID` in secure contexts; plain-HTTP LAN
+   origins are not). The request timeout applies only until upstream
+   response headers arrive, so long-lived streams (SSE event channels, long
+   polls) stay open; a request that never gets a response yields `502`.
 
 ## Upgrade flow (WebSocket)
 

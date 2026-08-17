@@ -22,8 +22,17 @@ const PASSWORD = process.env.SMOKE_PASSWORD ?? 'smoke-test-password'
 const HASH = hashPassword(PASSWORD)
 
 const args = process.argv.slice(2)
-const port = Number(args.find((a) => a.startsWith('--port='))?.split('=')[1] ?? 3081)
-const upstreamUrl = new URL(args.find((a) => a.startsWith('--upstream='))?.split('=')[1] ?? 'http://127.0.0.1:3080')
+const valueOf = (flag, fallback) => {
+  const at = args.indexOf(flag)
+  if (at === -1) return fallback
+  const inline = args.find((a) => a.startsWith(`${flag}=`))
+  if (inline !== undefined) return inline.split('=')[1]
+  const next = args[at + 1]
+  if (next !== undefined && !next.startsWith('--')) return next
+  return fallback
+}
+const port = Number(valueOf('--port', '3081'))
+const upstreamUrl = new URL(valueOf('--upstream', 'http://127.0.0.1:3080'))
 
 let failures = 0
 function check(name, ok, detail = '') {
@@ -180,6 +189,26 @@ try {
   // 4. Proxy headers rejected.
   const spoofed = await request(loopback, { path: '/', headers: { 'x-forwarded-for': '203.0.113.7' } })
   check('proxy headers rejected', spoofed.status === 400, `status=${spoofed.status}`)
+
+  // 5. DSH /api trust fence passes with a rewritten Origin (426 = the fence
+  //    accepted the request and asked for an upgrade; 403 = fence rejected).
+  const fenced = await request(loopback, {
+    path: '/api/events.mux',
+    headers: { origin: `http://${lanAddresses()[0] ?? '127.0.0.1'}:${bound.port}` },
+  })
+  check(
+    'DSH /api trust fence passes via rewritten Origin',
+    fenced.status !== 403 && fenced.status !== 0,
+    `status=${fenced.status}`,
+  )
+
+  // 6. The randomUUID polyfill is injected into the proxied index page.
+  const index = await request(loopback, { path: '/' })
+  check(
+    'crypto.randomUUID polyfill injected into the SPA index',
+    index.status === 200 && index.body.includes("typeof c.randomUUID === 'function'"),
+    `status=${index.status}`,
+  )
 
   console.log(failures === 0 ? '\nSMOKE TEST PASSED' : `\nSMOKE TEST FAILED (${failures} failure(s))`)
 } finally {

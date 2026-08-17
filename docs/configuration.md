@@ -123,6 +123,19 @@ directory should be readable only by the DSH user.
 | --- | --- | --- | --- |
 | `timeoutMs` | natural | `30000` | Upstream request timeout; exceeded requests fail with 502. |
 
+### `compat` — object (browser-compatibility layer for plain-HTTP LAN serving)
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `rewriteOrigin` | boolean | `true` | Rewrite the `Origin` header of proxied requests to the upstream authority (`http://127.0.0.1:3080`) so DSH's `/api` trust fence (which requires Origin to match Host) passes. Without it, every request carrying an Origin — POST/fetch RPC calls and WebSocket upgrades — is rejected with 403, breaking settings, plugin inventory, and model discovery for LAN clients. |
+| `injectRandomUUIDPolyfill` | boolean | `true` | Inject a tiny `crypto.randomUUID()` polyfill (backed by `crypto.getRandomValues`) into HTML pages. Browsers only expose `crypto.randomUUID` in secure contexts; plain-HTTP LAN origins are not secure contexts, so DSH's client-side RPC code would throw `crypto.randomUUID is not a function` (workspace creation, model page, plugin pages). |
+
+Security note: `rewriteOrigin` deliberately terminates DSH's DNS-rebinding
+fence for proxied traffic — the gateway **is** the trust perimeter (IP
+allowlist + password + sessions), and the fence's cross-site defense still
+applies to anything DSH rejects on `Sec-Fetch-Site: cross-site`. Only
+disable it if you fully understand the tradeoff.
+
 ## Example (annotated)
 
 ```yaml
@@ -167,6 +180,9 @@ directory should be readable only by the DSH user.
       level: info
     proxy:
       timeoutMs: 30000
+    compat:
+      rewriteOrigin: true
+      injectRandomUUIDPolyfill: true
 ```
 
 Validate a JSON config file with the CLI:

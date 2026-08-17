@@ -1,6 +1,6 @@
 {
   "name": "dsh-full-lan-access",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Secure LAN access gateway for DeepSeek Harness (DSH): CIDR allowlist, password authentication with scrypt, rate limiting, optional TLS, WebSocket reverse proxy, and audit logging.",
   "type": "module",
   "main": "lib/index.js",

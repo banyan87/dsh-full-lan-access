@@ -30,6 +30,8 @@ const silentLogger = {
 
 function startFakeUpstream() {
   return new Promise((resolve) => {
+    /** @type {Record<string, string> | null} most recent upgrade request headers */
+    let lastUpgradeHeaders = null
     const server = http.createServer((req, res) => {
       if (req.url === '/echo') {
         let body = ''
@@ -38,6 +40,21 @@ function startFakeUpstream() {
           res.writeHead(200, { 'content-type': 'application/json' })
           res.end(JSON.stringify({ path: req.url, method: req.method, body }))
         })
+        return
+      }
+      if (req.url === '/headers') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({
+          host: req.headers.host,
+          origin: req.headers.origin,
+          cookie: req.headers.cookie,
+          'sec-fetch-site': req.headers['sec-fetch-site'],
+        }))
+        return
+      }
+      if (req.url === '/html') {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+        res.end('<!doctype html><html><head><title>page</title></head><body>content</body></html>')
         return
       }
       if (req.url === '/slow-stream') {
@@ -55,6 +72,7 @@ function startFakeUpstream() {
       res.end('upstream-ok')
     })
     server.on('upgrade', (req, socket) => {
+      lastUpgradeHeaders = { ...req.headers }
       const key = req.headers['sec-websocket-key']
       const accept = createHash('sha1').update(`${key}${WS_GUID}`).digest('base64')
       socket.write(
@@ -67,7 +85,11 @@ function startFakeUpstream() {
       socket.on('data', (chunk) => socket.write(chunk))
     })
     server.listen(0, '127.0.0.1', () => {
-      resolve({ server, port: server.address().port })
+      resolve({
+        server,
+        port: server.address().port,
+        lastUpgradeHeaders: () => lastUpgradeHeaders,
+      })
     })
   })
 }
@@ -158,7 +180,7 @@ async function login(port, { password = PASSWORD } = {}) {
   return res
 }
 
-async function wsThroughGateway(port, { cookie } = {}) {
+async function wsThroughGateway(port, { cookie, origin } = {}) {
   return new Promise((resolve) => {
     const socket = net.connect(port, '127.0.0.1')
     const headers = [
@@ -170,6 +192,7 @@ async function wsThroughGateway(port, { cookie } = {}) {
       'Sec-WebSocket-Version: 13',
     ]
     if (cookie) headers.push(`Cookie: ${cookie}`)
+    if (origin) headers.push(`Origin: ${origin}`)
     let response = Buffer.alloc(0)
     let status = null
     socket.on('data', (chunk) => {
@@ -535,4 +558,68 @@ test('audit log records auth failures and successes', async () => {
   const events = lines.map((line) => JSON.parse(line).event)
   assert.ok(events.includes('auth-failed'))
   assert.ok(events.includes('auth-ok'))
+})
+
+test('HTML responses get the randomUUID polyfill injected; other types do not', async () => {
+  const html = await request(gatewayA.port, { path: '/html' })
+  assert.equal(html.status, 200)
+  assert.ok(html.body.includes("typeof c.randomUUID === 'function'"), 'polyfill must be injected into HTML')
+  assert.ok(html.body.indexOf('randomUUID') < html.body.indexOf('</head>'), 'polyfill must land before </head>')
+
+  const json = await request(gatewayA.port, { path: '/echo', method: 'POST', body: 'x' })
+  assert.ok(!json.body.includes('randomUUID'), 'JSON responses must pass through untouched')
+})
+
+test('Origin is rewritten to the upstream authority so the DSH trust fence passes', async () => {
+  const res = await request(gatewayA.port, {
+    path: '/headers',
+    headers: { origin: 'http://172.16.1.36:3081', 'sec-fetch-site': 'same-origin' },
+  })
+  assert.equal(res.status, 200)
+  const seen = JSON.parse(res.body)
+  assert.equal(seen.host, `127.0.0.1:${upstream.port}`, 'Host must point at the upstream loopback')
+  assert.equal(seen.origin, `http://127.0.0.1:${upstream.port}`, 'Origin must match the rewritten Host')
+  assert.equal(seen['sec-fetch-site'], 'same-origin')
+})
+
+test('Origin rewriting can be disabled via compat.rewriteOrigin', async () => {
+  const gate = await startGateway(upstream.port, { compat: { rewriteOrigin: false } })
+  try {
+    const res = await request(gate.port, {
+      path: '/headers',
+      headers: { origin: 'http://172.16.1.36:3081' },
+    })
+    const seen = JSON.parse(res.body)
+    assert.equal(seen.origin, 'http://172.16.1.36:3081', 'Origin must pass through untouched when disabled')
+  } finally {
+    await gate.gateway.close()
+    rmSync(gate.stateDir, { recursive: true, force: true })
+  }
+})
+
+test('WebSocket upgrades carry the rewritten Origin to the upstream', async () => {
+  const res = await login(gatewayB.port)
+  const cookies = extractCookies(res)
+  const cookieHeader = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ')
+  const tunnel = await wsThroughGateway(gatewayB.port, {
+    cookie: cookieHeader,
+    origin: 'http://172.16.1.36:3081',
+  })
+  assert.equal(tunnel.status, 101)
+  const headers = upstream.lastUpgradeHeaders()
+  assert.ok(headers, 'upstream must have seen the upgrade')
+  assert.equal(headers.origin, `http://127.0.0.1:${upstream.port}`, 'upgrade Origin must be rewritten')
+  assert.equal(headers.host, `127.0.0.1:${upstream.port}`)
+})
+
+test('the randomUUID polyfill injection can be disabled', async () => {
+  const gate = await startGateway(upstream.port, { compat: { injectRandomUUIDPolyfill: false } })
+  try {
+    const html = await request(gate.port, { path: '/html' })
+    assert.equal(html.status, 200)
+    assert.ok(!html.body.includes('randomUUID'), 'no polyfill when disabled')
+  } finally {
+    await gate.gateway.close()
+    rmSync(gate.stateDir, { recursive: true, force: true })
+  }
 })
