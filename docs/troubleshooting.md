@@ -82,6 +82,60 @@ provide your own certificate via `tls.certPath`/`tls.keyPath`.
 Ensure `tls.enabled: true` **and** that clients use `https://`, not `http://`.
 The gateway serves one protocol per listener.
 
+## LAN/VPN clients cannot reach the gateway
+
+The gateway binds `0.0.0.0` and `node.exe` normally already has a Windows
+Firewall allow rule (any TCP port) — so start from the gateway's own
+diagnostics:
+
+```bash
+curl -s http://127.0.0.1:3081/__lan_gate/status
+```
+
+The `urls` field lists every non-internal interface address with the bound
+port (the startup log prints the same). If your VPN adapter's address is
+there but the remote device still cannot connect:
+
+- **VPN client ACLs** — virtual-LAN products (OrayBox/蒲公英, ZeroTier,
+  Tailscale …) often apply their own access control. Check the member /
+  device entry for this machine: it must be online and allow inbound
+  connections, and the remote device must be a member of the same network.
+  Many default to blocking non-HTTP ports or non-whitelisted members.
+- **Phone-side proxies** — some mobile browsers/VPN apps proxy only
+  `80`/`443`; a non-standard port may not be routed. Try the OrayBox/
+  provider hostname, or a direct (non-proxied) browser.
+- **Firewall** — verify the listener process is covered:
+  `Get-NetFirewallRule -Direction Inbound | ? DisplayName -match node`.
+  If not, allow it: `netsh advfirewall firewall add rule name="dsh-lan-access"
+  dir=in action=allow protocol=TCP localport=3081` (run as administrator).
+- From the remote device: `ping <host-ip>` first, then a port probe.
+
+## The web UI looks stale after an update (language, plugin pages, models)
+
+After restarting DSH with a new gateway version, **hard-refresh** the
+browser tab (`Ctrl+F5` / clear the site's cache). The DSH page is cached
+per-origin, and an old tab keeps running the previous session's code (the
+`crypto.randomUUID` polyfill and Origin rewriting only exist in the freshly
+served page). If a tab still misbehaves, close it entirely and reopen
+`http://<lan-ip>:3081`.
+
+## Workspace creation opens a folder dialog on the host instead of a web picker
+
+By design (since 1.3.0) the bundle pins the browser-based picker, so
+workspace creation uses an in-page directory browser that works from any
+device. If you previously overrode the picker rows, or want the native OS
+chooser back for the host's own desktop, re-enable it from the profile's
+patch layer:
+
+```yaml
+- id: directory-picker
+  disabled: false
+- id: directory-picker-browse
+  disabled: true
+- id: ui-directory-picker-browse
+  disabled: true
+```
+
 ## Where are the logs?
 
 - DSH logger: the gateway logs `listening`, `stopping`, and audit lines at

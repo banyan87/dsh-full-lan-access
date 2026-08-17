@@ -21,3 +21,32 @@
 - insert:
     - id: lan-access
       name: 'dsh-full-lan-access'
+
+# ── browser-based directory picker ─────────────────────────────────────────
+#
+# DSH's adaptive picker (`directory-picker` → dsh-host-directory-picker-auto)
+# resolves to the NATIVE OS chooser on desktop hosts, but a native dialog can
+# only open on the host machine — useless (and silently broken) for browsers
+# reaching DSH through the LAN gateway. This bundle pins the BROWSE pair
+# instead: composing the pair directly is the documented way to fix the
+# interaction. The browse picker is a web file browser that works from any
+# browser, local or remote.
+#
+# To keep the native chooser for the host's own desktop, override these rows
+# from the profile's own patch layer:
+#
+#   - id: directory-picker
+#     disabled: false
+#   - id: directory-picker-browse
+#     disabled: true
+#   - id: ui-directory-picker-browse
+#     disabled: true
+
+- id: directory-picker
+  disabled: true
+
+- insert:
+    - id: directory-picker-browse
+      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+    - id: ui-directory-picker-browse
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'

@@ -473,6 +473,8 @@ test('status endpoint requires auth in auth mode and reports state', async () =>
   assert.equal(parsed.security.authConfigured, true)
   assert.equal(parsed.sessions.count, 1)
   assert.equal(parsed.upstream.port, upstream.port)
+  assert.ok(Array.isArray(parsed.urls), 'status must report reachable LAN URLs')
+  assert.ok(parsed.urls.some((u) => u.includes(`:${gatewayB.port}`)), `status.urls must include the bound port (${gatewayB.port})`)
   assert.ok(!JSON.stringify(parsed).includes(PASSWORD), 'status must never expose the hash')
 })
 

@@ -4,6 +4,24 @@ All notable changes to dsh-full-lan-access are documented here. The format
 is based on [Keep a Changelog](https://keepachangelog.com/), and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] — 2026-08-17
+
+### Added
+
+- **Browser-based directory picker pinned by the bundle.** DSH's adaptive
+  picker resolves to the native OS chooser on desktop hosts, but a native
+  dialog can only open on the host machine — workspace creation from a LAN
+  browser was broken. The bundle now disables the `directory-picker` (auto)
+  row and composes the `browse` pair directly
+  (`dsh-host-directory-picker-browse` + `dsh-client-ui-directory-picker-browse`),
+  the documented way to pin the interaction. The web file browser works
+  from any browser, local or remote. Opt out by re-enabling the rows from
+  the profile's own patch layer (see `cordis.patch.yml`).
+- **Reachability diagnostics** — the gateway logs and exposes on
+  `/__lan_gate/status` (`urls`) every non-internal interface address with
+  the bound port, so the URL a LAN/VPN client should open is visible at a
+  glance (e.g. `http://172.16.1.36:3081`).
+
 ## [1.2.0] — 2026-08-17
 
 ### Added

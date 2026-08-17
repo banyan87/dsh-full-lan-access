@@ -85,15 +85,29 @@ test('bundle manifest declares dsh.bundle.patch', () => {
   assert.equal(manifest.dsh?.bundle?.patch, './cordis.patch.yml')
 })
 
-test('bundle patch is valid YAML and inserts exactly the lan-access row, fail-closed', () => {
+test('bundle patch is valid YAML: lan-access row (fail-closed) + pinned browse picker', () => {
   const patch = bundlePatch()
-  assert.equal(patch.length, 1)
-  assert.ok(Array.isArray(patch[0].insert), 'bundle must insert (not target) the row')
-  const [row] = patch[0].insert
-  assert.equal(row.id, 'lan-access')
-  assert.equal(row.name, 'dsh-full-lan-access')
-  assert.equal(row.config, undefined, 'bundle row ships without config → fail closed until configured')
-  assert.equal(row.disabled, undefined, 'bundle row must not be disabled')
+  const inserts = patch.flatMap((p) => p.insert ?? [])
+  const overrides = patch.filter((p) => p.insert === undefined)
+
+  // The lan-access row: inserted, identity only, not disabled, no config.
+  const lanRow = inserts.find((r) => r.id === 'lan-access')
+  assert.ok(lanRow, 'lan-access row must be inserted')
+  assert.equal(lanRow.name, 'dsh-full-lan-access')
+  assert.equal(lanRow.config, undefined, 'bundle row ships without config → fail closed until configured')
+  assert.equal(lanRow.disabled, undefined, 'bundle row must not be disabled')
+
+  // The adaptive picker is disabled so the native OS chooser never mounts.
+  const picker = overrides.find((p) => p.id === 'directory-picker')
+  assert.ok(picker, 'directory-picker must be patched')
+  assert.equal(picker.disabled, true, 'the native/adaptive picker must be disabled')
+
+  // The browser-based browse pair is composed directly (the documented way
+  // to pin the interaction).
+  const browseHost = inserts.find((r) => r.id === 'directory-picker-browse')
+  const browseUi = inserts.find((r) => r.id === 'ui-directory-picker-browse')
+  assert.equal(browseHost?.name, '@deepseek-ai/dsh-host-directory-picker-browse')
+  assert.equal(browseUi?.name, '@deepseek-ai/dsh-client-ui-directory-picker-browse')
 })
 
 test('a bare id-targeted patch over an empty list is skipped with a warning (doc contract)', () => {
